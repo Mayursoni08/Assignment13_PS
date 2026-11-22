@@ -16,10 +16,3 @@ Design and verification of a 3-zone mho distance relay for a 220 kV line (relay 
 pip install -r requirements.txt
 python ee315_assignment13.py
 ```
-
-## Web demo (GitHub Pages)
-Repository Settings -> Pages -> Source: `main` branch, folder `/docs`. The demo will be at `https://mayursoni08.github.io/Assignment13_PS/`.
-It shows the steady-state result (no noise or DC offset).
-
-## Report
-Zip the `report/` folder and upload it to Overleaf (New Project -> Upload Project). Edit names, roll number and links in the "EDIT HERE" block at the top of `main.tex`.
