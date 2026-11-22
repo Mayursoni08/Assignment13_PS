@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Distance Protection Simulator | EE 315 Assignment 13</title>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#17202a;--mut:#667085;--line:#e4e8ee;--z1:#e5484d;--z2:#f08c00;--z3:#2f7de1;--navy:#0f2a4a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:linear-gradient(120deg,var(--navy),#1d4f91);color:#fff;padding:26px 20px 70px}
+.wrap{max-width:1080px;margin:auto}
+header h1{margin:0;font-size:26px;letter-spacing:-.3px}
+header p{margin:6px 0 0;opacity:.85;max-width:720px}
+.tag{display:inline-block;background:#ffffff22;border-radius:20px;padding:3px 12px;font-size:12px;margin-bottom:10px}
+main{margin-top:-48px;padding:0 16px 40px}
+.grid{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:18px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 2px 12px #0f2a4a14}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin:0 0 12px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#f1f4f8;padding:4px;border-radius:10px}
+.seg button{border:0;background:none;padding:9px 4px;border-radius:8px;font:600 14px inherit;font-family:inherit;color:var(--mut);cursor:pointer}
+.seg button.on{background:#fff;color:var(--navy);box-shadow:0 1px 4px #0002}
+.row{margin-top:18px}.row .top{display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+.row .top b{color:var(--z3);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--z3);margin:8px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips button{border:1px solid var(--line);background:#fff;border-radius:20px;padding:5px 11px;font:13px inherit;font-family:inherit;cursor:pointer;color:var(--ink)}
+.chips button:hover{border-color:var(--z3);color:var(--z3)}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}
+.tile{background:#f7f9fc;border-radius:10px;padding:11px 13px}
+.tile small{display:block;color:var(--mut);font-size:12px}
+.tile strong{font-size:18px;font-variant-numeric:tabular-nums}
+.big{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;color:#fff;transition:background .2s}
+.big strong{font-size:26px}.big small{color:#ffffffcc}
+.msg{margin-top:12px;font-size:13px;color:var(--mut);min-height:38px}
+canvas{width:100%;height:auto;display:block}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:12px;text-transform:uppercase;color:var(--mut);text-align:left;padding:6px;border-bottom:2px solid var(--line)}
+td{padding:8px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+footer{text-align:center;color:var(--mut);font-size:12.5px;padding:0 16px 30px}
+footer a{color:var(--z3)}
+</style></head><body>
+<header><div class="wrap"><span class="tag">EE 315 Power Systems &middot; Assignment 13</span>
+<h1>Stepped Distance Protection Simulator</h1>
+<p>Three-zone mho relay at Bus A protecting a 220&nbsp;kV line. Pick a fault, move it along the line, and see where the relay sees it on the R-X plane.</p></div></header>
+<main><div class="wrap">
+<div class="grid">
+ <div class="card">
+  <h2>Fault settings</h2>
+  <div class="seg" id="seg"><button data-f="AG" class="on">A-G</button><button data-f="BC">B-C</button><button data-f="ABC">A-B-C</button></div>
+  <div class="row"><div class="top"><span>Distance from relay</span><b><span id="dv"></span> km</b></div><input id="d" type="range" min="1" max="220" value="40"></div>
+  <div class="row"><div class="top"><span>Fault resistance</span><b><span id="rv"></span> &Omega;</b></div><input id="rf" type="range" min="0" max="100" value="5"></div>
+  <div class="chips" id="chips"></div>
+  <div class="tiles">
+   <div class="tile big" id="big"><div><small>Relay decision</small><strong id="zone"></strong></div><div style="text-align:right"><small>Trip time</small><strong id="trip"></strong></div></div>
+   <div class="tile"><small>Fault location</small><strong id="loc" style="font-size:15px"></strong></div>
+   <div class="tile"><small>Ideal zone (bolted)</small><strong id="ideal"></strong></div>
+   <div class="tile" style="grid-column:1/-1"><small>Apparent impedance (relay secondary)</small><strong id="zapp"></strong></div>
+  </div>
+  <div class="msg" id="msg"></div>
+ </div>
+ <div class="card">
+  <h2>R-X plane</h2><canvas id="cv"></canvas>
+  <div class="legend"><span><i style="background:var(--z1)"></i>Zone 1</span><span><i style="background:var(--z2)"></i>Zone 2</span><span><i style="background:var(--z3)"></i>Zone 3</span><span>&#9679; measured &nbsp; &#9675; bolted-fault position</span></div>
+ </div>
+</div>
+<div class="grid" style="margin-top:18px;grid-template-columns:1fr minmax(300px,420px)">
+ <div class="card"><h2>Time-distance staircase</h2><canvas id="st"></canvas></div>
+ <div class="card"><h2>Zone settings</h2>
+  <table><tr><th>Zone</th><th>Reach</th><th>Delay</th></tr>
+  <tr><td style="color:var(--z1)"><b>Z1</b></td><td>13.05 &Omega; (64 km)</td><td>0 s</td></tr>
+  <tr><td style="color:var(--z2)"><b>Z2</b></td><td>22.44 &Omega; (110 km)</td><td>0.4 s</td></tr>
+  <tr><td style="color:var(--z3)"><b>Z3</b></td><td>40.79 &Omega; (200 km)</td><td>1.0 s</td></tr></table>
+  <p class="msg" style="min-height:0">Reaches are in secondary ohms (CT 1000/1, PT 2000:1). Trip time = 40&nbsp;ms measurement + zone delay. Line AB = 80&nbsp;km, BC = 60&nbsp;km, BD = 100&nbsp;km; distances beyond 180&nbsp;km are a hypothetical extension past Bus D.</p></div>
+</div></div></main>
+<footer>Steady-state sequence-network model (no noise or DC offset). Full simulation, report and code: <a href="https://github.com/Mayursoni08/Assignment13_PS">github.com/Mayursoni08/Assignment13_PS</a></footer>
+<script>
+const C=(r,i=0)=>({r,i}),add=(a,b)=>C(a.r+b.r,a.i+b.i),sub=(a,b)=>C(a.r-b.r,a.i-b.i),
+mul=(a,b)=>C(a.r*b.r-a.i*b.i,a.r*b.i+a.i*b.r),sc=(a,k)=>C(a.r*k,a.i*k),
+div=(a,b)=>{const m=b.r*b.r+b.i*b.i;return C((a.r*b.r+a.i*b.i)/m,(a.i*b.r-a.r*b.i)/m)},
+ab=a=>Math.hypot(a.r,a.i),pol=(m,deg)=>C(m*Math.cos(deg*Math.PI/180),m*Math.sin(deg*Math.PI/180));
+const E=C(220e3/Math.sqrt(3)),z1=C(.08,.4),z0=C(.3,1.2),Zs1=pol(220e3**2/5000e6,85),Zs0=pol(1.3*220e3**2/5000e6,80);
+const a1=pol(1,120),a2=pol(1,240),KS=.5,TH=Math.atan2(z1.i,z1.r),k0=div(sub(z0,z1),sc(z1,3));
+const L={AB:80,BC:60,BD:100},zm=ab(z1);
+const ZP={1:.8*L.AB*zm,2:(L.AB+.5*L.BC)*zm,3:(L.AB+1.2*L.BD)*zm},ZS={},TD={1:0,2:.4,3:1},REACH={};
+for(const z of[1,2,3]){ZS[z]=ZP[z]*KS;REACH[z]=ZP[z]/zm}
+const COL={0:"#667085",1:"#e5484d",2:"#f08c00",3:"#2f7de1"},NAME={0:"No pickup",1:"Zone 1",2:"Zone 2",3:"Zone 3"};
+const ph=(x0,x1,x2)=>[add(add(x0,x1),x2),add(add(x0,mul(a2,x1)),mul(a1,x2)),add(add(x0,mul(a1,x1)),mul(a2,x2))];
+function zapp(ft,d,Rf){
+ const Z1=add(Zs1,sc(z1,d)),Z0=add(Zs0,sc(z0,d));let I0=C(0),I1,I2;
+ if(ft=="AG"){I1=I2=I0=div(E,add(add(sc(Z1,2),Z0),C(3*Rf)))}
+ else if(ft=="BC"){I1=div(E,add(sc(Z1,2),C(Rf)));I2=sc(I1,-1)}
+ else{I1=div(E,add(Z1,C(Rf)));I2=C(0)}
+ const V=ph(mul(I0,sc(Zs0,-1)),sub(E,mul(I1,Zs1)),mul(I2,sc(Zs1,-1))),I=ph(I0,I1,I2);let Z;
+ if(ft=="AG")Z=div(V[0],add(I[0],mul(k0,add(add(I[0],I[1]),I[2]))));
+ else if(ft=="BC")Z=div(sub(V[1],V[2]),sub(I[1],I[2]));
+ else Z=div(sub(V[0],V[1]),sub(I[0],I[1]));
+ return sc(Z,KS)}
+const zoneOf=Z=>{for(const z of[1,2,3]){const r=ZS[z];if(ab(sub(Z,pol(r/2,TH*180/Math.PI)))<=r/2)return z}return 0};
+const ideal=d=>{for(const z of[1,2,3])if(d<=REACH[z])return z;return 0};
+const $=id=>document.getElementById(id),dpr=window.devicePixelRatio||1;
+function setup(cv,w,h){cv.width=w*dpr;cv.height=h*dpr;const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);return g}
+// ---- R-X plot ----
+function drawRX(Z,Zb,zone){
+ const W=480,H=545,s=W/44,ox=18*s,oy=46*s,px=R=>ox+R*s,py=X=>oy-X*s,g=setup($("cv"),W,H);
+ g.font="11px system-ui";g.lineWidth=1;
+ for(let X=0;X<=45;X+=10){g.strokeStyle="#e8ecf2";g.beginPath();g.moveTo(0,py(X));g.lineTo(W,py(X));g.stroke();g.fillStyle="#98a2b3";g.fillText(X,px(0)+4,py(X)-3)}
+ for(let R=-10;R<=25;R+=10){g.strokeStyle="#e8ecf2";g.beginPath();g.moveTo(px(R),0);g.lineTo(px(R),H);g.stroke();if(R)g.fillStyle="#98a2b3",g.fillText(R,px(R)+3,py(0)+13)}
+ g.strokeStyle="#98a2b3";g.beginPath();g.moveTo(0,py(0));g.lineTo(W,py(0));g.moveTo(px(0),0);g.lineTo(px(0),H);g.stroke();
+ for(const z of[3,2,1]){const r=ZS[z],c=r/2;g.beginPath();g.arc(px(c*Math.cos(TH)),py(c*Math.sin(TH)),c*s,0,7);
+  g.fillStyle=COL[z]+"22";g.fill();g.strokeStyle=COL[z];g.lineWidth=2;g.stroke();
+  g.fillStyle=COL[z];g.font="bold 13px system-ui";g.fillText("Z"+z,px(r*Math.cos(TH))+8,py(r*Math.sin(TH))+4)}
+ g.setLineDash([4,4]);g.strokeStyle="#667085";g.lineWidth=1;g.beginPath();g.moveTo(px(0),py(0));g.lineTo(px(46*Math.cos(TH)),py(46*Math.sin(TH)));g.stroke();
+ g.strokeStyle=COL[zone];g.beginPath();g.moveTo(px(Zb.r),py(Zb.i));g.lineTo(px(Z.r),py(Z.i));g.stroke();g.setLineDash([]);
+ g.strokeStyle="#344054";g.lineWidth=2;g.beginPath();g.arc(px(Zb.r),py(Zb.i),5,0,7);g.stroke();
+ g.fillStyle=COL[zone];g.strokeStyle="#fff";g.lineWidth=2.5;g.beginPath();g.arc(px(Z.r),py(Z.i),8,0,7);g.fill();g.stroke();
+ g.fillStyle="#667085";g.font="12px system-ui";g.fillText("R (ohm)",W-52,py(0)-6);g.fillText("X (ohm)",px(0)+6,14)}
+// ---- staircase ----
+function drawST(d,zone){
+ const W=640,H=300,l=48,r=14,t=16,b=38,g=setup($("st"),W,H),px=x=>l+x/220*(W-l-r),py=y=>H-b-y/1.3*(H-t-b);
+ g.font="11px system-ui";g.fillStyle="#98a2b3";g.strokeStyle="#e8ecf2";g.lineWidth=1;
+ for(const y of[0,.4,.8,1.2]){g.beginPath();g.moveTo(l,py(y));g.lineTo(W-r,py(y));g.stroke();g.fillText(y.toFixed(1),12,py(y)+4)}
+ for(let x=0;x<=220;x+=40)g.fillText(x,px(x)-8,H-20);
+ g.fillText("distance from relay (km)",W/2-60,H-4);g.save();g.translate(12,H/2+30);g.rotate(-Math.PI/2);g.fillText("trip time (s)",0,0);g.restore();
+ const seg=[[0,REACH[1],.04,1],[REACH[1],REACH[2],.44,2],[REACH[2],REACH[3],1.04,3]];
+ for(const[a,c,y,z]of seg){g.fillStyle=COL[z]+"22";g.fillRect(px(a),py(y),px(c)-px(a),py(0)-py(y));g.strokeStyle=COL[z];g.lineWidth=2.5;g.beginPath();g.moveTo(px(a),py(y));g.lineTo(px(c),py(y));g.stroke()}
+ g.setLineDash([3,4]);g.strokeStyle="#98a2b3";g.lineWidth=1;for(const x of[80,180]){g.beginPath();g.moveTo(px(x),t);g.lineTo(px(x),py(0));g.stroke();g.fillStyle="#667085";g.fillText(x==80?"Bus B":"Bus D",px(x)+4,t+8)}g.setLineDash([]);
+ const y=zone?[0,.04,.44,1.04][zone]:1.2;g.fillStyle=COL[zone];g.strokeStyle="#fff";g.lineWidth=2.5;g.beginPath();g.arc(px(d),py(y),8,0,7);g.fill();g.stroke();
+ if(!zone){g.fillStyle="#667085";g.fillText("no trip",Math.min(px(d)-20,W-60),py(y)-14)}}
+// ---- UI ----
+let ft="AG";
+const PRE=[["Close-in",{f:"AG",d:8,r:0}],["Near Z1 limit",{f:"AG",d:60,r:0}],["End of AB",{f:"BC",d:80,r:2}],["On line BD",{f:"ABC",d:130,r:1}],["High resistance",{f:"AG",d:30,r:50}],["Beyond Z3",{f:"AG",d:210,r:0}]];
+for(const[n,p]of PRE){const b=document.createElement("button");b.textContent=n;b.onclick=()=>{ft=p.f;$("d").value=p.d;$("rf").value=p.r;upd()};$("chips").appendChild(b)}
+document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{ft=b.dataset.f;upd()});
+function upd(){
+ document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.f==ft));
+ const d=+$("d").value,Rf=+$("rf").value;$("dv").textContent=d;$("rv").textContent=Rf;
+ const Z=zapp(ft,d,Rf),Zb=zapp(ft,d,0),zn=zoneOf(Z),id=ideal(d);
+ $("loc").textContent=d<=80?"Line AB, "+Math.round(d/80*100)+" %":d<=180?"Line BD, "+Math.round((d-80))+" %":"Beyond Bus D";
+ $("zapp").textContent=Z.r.toFixed(2)+(Z.i<0?" - j":" + j")+Math.abs(Z.i).toFixed(2)+" \u03A9";
+ $("ideal").textContent=id?"Zone "+id:"None";$("zone").textContent=NAME[zn];
+ $("trip").textContent=zn?(0.04+TD[zn]).toFixed(2)+" s":"\u2014";$("big").style.background=COL[zn];
+ $("msg").textContent=zn==id?(Rf>0&&zn?"Resistance shifts the measured point to the right, but the relay still picks the correct zone.":zn?"The relay operates in the correct zone.":"Outside every zone: no trip."):
+  zn==0?"Fault resistance pushes the measured point outside the largest circle: the relay does not operate (under-reach).":"Fault resistance makes the fault look farther away, so a slower zone operates (under-reach).";
+ drawRX(Z,Zb,zn);drawST(d,zn)}
+$("d").oninput=$("rf").oninput=upd;upd();
+</script></body></html>
